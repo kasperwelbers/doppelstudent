@@ -1,0 +1,21 @@
+Package: doppelstudent
+Title: Shiny app for open ended question similarity
+Version: 0.0.0.9000
+Authors@R: person('Kasper', 'Welbers', email = 'kasperwelbers@gmail.com', role = c('cre', 'aut'))
+Description: A shiny app that scores and visualizes the similarity of answers to open-ended exam questions. Designed for testvision output.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Imports: 
+    shiny,
+    golem,
+    readr,
+    data.table,
+    corpustools,
+    shinyWidgets,
+    shinydashboard,
+    shinyalert,
+    shinyjs,
+    DT,
+    textclean
+RoxygenNote: 7.0.2
