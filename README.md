@@ -19,8 +19,8 @@ package. For the current version, the development version of
 tokenbrowser also needs to be installed.
 
 ``` r
-devtools::install_packages('kasperwelbers/tokenbrowser')
-devtools::install_packages('kasperwelbers/doppelstudent')
+devtools::install_github('kasperwelbers/tokenbrowser')
+devtools::install_github('kasperwelbers/doppelstudent')
 
 library(doppelstudent)
 run_doppelstudent()

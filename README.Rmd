@@ -24,8 +24,8 @@ The shiny app can be fired up, and anyone can use it to upload a csv file with t
 The package should be easily installable from github, using the devtools package. For the current version, the development version of tokenbrowser also needs to be installed.
 
 ```{r, eval=F}
-devtools::install_packages('kasperwelbers/tokenbrowser')
-devtools::install_packages('kasperwelbers/doppelstudent')
+devtools::install_github('kasperwelbers/tokenbrowser')
+devtools::install_github('kasperwelbers/doppelstudent')
 
 library(doppelstudent)
 run_doppelstudent()
