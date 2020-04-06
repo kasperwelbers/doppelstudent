@@ -144,22 +144,26 @@ highlight_text <- function(input, output, tc, sim, sa, max_ngrams=5) {
   
   
   y$highlight = NA
+  ng=5
   for (ng in 2:max_ngrams) {
     x_feature = x[[paste0('ngram', ng)]]
     y_feature = y[[paste0('ngram', ng)]]
     
-    x_match = which(x_feature %in% levels(y_feature))
     y_match = which(y_feature %in% levels(x_feature))
     if (ng > 1) {
-      x_match = unique(unlist(lapply(x_match, function(x) (x-ng+1):x)))
-      y_match = unique(unlist(lapply(y_match, function(x) (x-ng+1):x)))
-      x_match = x_match[x_match > 0]
-      y_match = y_match[y_match > 0]
+      y_match = unique(unlist(lapply(y_match, function(i) {
+        i_ngram = (i-ng+1):i
+        i_ngram = i_ngram[i_ngram > 0]
+        same_doc = y$doc_id[i] == y$doc_id[i_ngram]
+        i_ngram[same_doc]
+      })))
     }
     y$highlight[y_match] = (ng / max_ngrams)^3
   }
-
   
+  #browser()
+  
+
   #x$token = tokenbrowser::highlight_tokens(x$token, x$highlight, col = 'lightyellow')
   #y$token = tokenbrowser::highlight_tokens(y$token, y$highlight, col = 'lightyellow')
 
@@ -192,5 +196,7 @@ highlight_text <- function(input, output, tc, sim, sa, max_ngrams=5) {
   output$txt_x = shiny::renderText(xdoc)
   output$txt_y = shiny::renderText(ydoc)
 }
+
+
 
 

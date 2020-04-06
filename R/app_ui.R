@@ -15,7 +15,20 @@ app_ui <- function() {
                                    shinyalert::useShinyalert(),  # Set up shinyalert
                                    shinyjs::useShinyjs(),
                                    sidebarMenu(
-                                     fileInput('csv_file', label = 'Upload testvision file', accept = c("text/csv", "text/comma-separated-values,text/plain",".csv"))
+                                     div(align='center',
+                                     column(width=12,
+                                       div(
+                                         selectInput('file_style', 'Choose input format', choice=csv_options),
+                                         uiOutput('custom_csv')
+                                       ),
+                                       fileInput('csv_file', label = 'Upload testvision file', accept = c("text/csv", "text/comma-separated-values,text/plain",".csv")),
+                                       textOutput('csv_upload_info')
+                                     ),
+                                     uiOutput('custom_columns'),
+                                     uiOutput('gogogo')
+                                     
+                                     
+                                     )
                                    )),
                   dashboardBody(
                     fluidPage(
@@ -35,8 +48,11 @@ app_ui <- function() {
                                DT::dataTableOutput('suspicious_answers')
                         ),
                         column(width=4, 
-                          fixedRow(h3('Answer', align='center'),
-                              br(),
+                          fixedRow(
+                              div(style = "height:120px", 
+                                  h3('Answer'),
+                                  shiny::p('Comparison of selected answer with answers from other students, sorted from most to least similar.')
+                              ),
                               div(class='textbox', 
                                   htmlOutput('txt_x'),  
                                   style = "overflow-y: scroll; height: 200px")),
@@ -56,6 +72,12 @@ app_ui <- function() {
     )
   )
 }
+
+csv_options = list('TestVision'='testvision',
+                   'CSV: comma-separated' = 'read_csv', 
+                   'CSV: tab-separated' = 'read_tsv',
+                   'CSV: European (; with , decimal point)' = 'read_csv2', 
+                   'CSV: custom' = 'custom')
 
 #' @import shiny
 golem_add_external_resources <- function(){

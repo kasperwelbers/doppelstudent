@@ -21,7 +21,6 @@ usethis::use_package( "shinyjs" ) # To call each time you need a new package
 usethis::use_package( "DT" ) # To call each time you need a new package
 usethis::use_package( "textclean" ) # To call each time you need a new package
 
-
 ## 2.3 Add tests
 
 usethis::use_test( "app" )
