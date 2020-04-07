@@ -21,6 +21,13 @@ doc_id {
   font-weight:bold;
 }
 
+table.display.nowrap.dataTable.no-footer td {
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 answer {
   padding: 0.2em;
   line-height: 1.2;

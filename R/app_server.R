@@ -50,7 +50,8 @@ app_server <- function(input, output,session) {
     output$gogogo = renderUI({
       tagList(
         br(),
-        actionButton('prepare_data', 'Load data')
+        actionButton('prepare_data', 'Load data'),
+        radioButtons('measure', 'Similarity measure', choices=list('Cosine similarity (symmetic)'='cosine', 'Overlap percentage (assymetric)'='overlap_pct'))
       )
     })
     d
@@ -98,18 +99,31 @@ app_server <- function(input, output,session) {
     return(tc)
   })
   
-  sim = reactive({get_question_sim(tc())})
+  sim = reactive({get_question_sim(tc(), input$measure)})
   
   suspicious_students = reactive({
     if (is.null(sim())) 
       NULL
     else {
       df = plagiarism_suspects(sim())
-      data.table::setnames(df, c('from_candidate','average_z'), c('Student','Z-score'))
+      data.table::setnames(df, c('from_candidate','average_z'), c('Student','Z'))
     }
   })
   
-  output$suspicious_students = DT::renderDataTable(suspicious_students(), options=list(dom = 'Bfrtip', pageLength=25), rownames=F, selection='multiple')
+  output$suspicious_students = DT::renderDataTable({
+    df = suspicious_students()
+    
+    df = DT::datatable(df, options=list(dom = 'Bfrtip', 
+                                        pageLength=25), 
+                       rownames=F, selection='multiple')
+    
+    cuts = -200:200 / 100
+    val = tokenbrowser::scale_col(tokenbrowser::rescale_var(cuts, new_min=-1, new_max=1)^2 * sign(cuts), 
+                                  col_range=c('green','white','red'), alpha = 0.2)
+    df = DT::formatStyle(df, columns='Z',  
+                         backgroundColor = DT::styleInterval(cuts[-1], val))
+    df
+  })
   
   suspicious_answers = reactive({
     if (is.null(sim())) 
@@ -126,12 +140,30 @@ app_server <- function(input, output,session) {
       #if (length(input$candidate_filter)) {
       #  df = df[list(from_candidate = input$candidate_filter), , on = 'from_candidate']
       #}
-      data.table::setnames(df, c('from_candidate','question','weight','question_z'), c('Student', 'Question', 'Similarity', 'Z-score'))
+      data.table::setnames(df, c('from_candidate','question','weight','question_z'), c('Student', 'Question', 'Sim', 'Z'))
       df
     }
   })
   
-  output$suspicious_answers = DT::renderDataTable(suspicious_answers(), options=list(dom = 'Bfrtip', pageLength=25), rownames=F, selection='single')
+  output$suspicious_answers = DT::renderDataTable({
+    df = suspicious_answers()
+    df = DT::datatable(df, class = "display nowrap",
+                       extensions = c('Scroller'),
+                       options=list(dom = 'Bfrtip', pageLength=25), rownames=F, selection='single')
+    
+    cuts = -200:200 / 100
+    val = tokenbrowser::scale_col(tokenbrowser::rescale_var(cuts, new_min=-1, new_max=1)^2 * sign(cuts), 
+                                  col_range=c('green','white','red'), alpha = 0.2)
+    df = DT::formatStyle(df, columns='Z',  
+                         backgroundColor = DT::styleInterval(cuts[-1], val))
+    
+    cuts = 1:100/100
+    val = tokenbrowser::scale_col(tokenbrowser::rescale_var(cuts^2, new_min=-1, new_max=1), 
+                                  col_range=c('white','red'), alpha = 0.2)
+    df = DT::formatStyle(df, columns='Sim',  
+                         backgroundColor = DT::styleInterval(cuts[-1], val))
+    df
+  })
   
   observeEvent(input$suspicious_answers_rows_selected ,{
     highlight_text(input, output, tc(), sim(), suspicious_answers())

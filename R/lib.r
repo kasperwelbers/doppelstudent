@@ -50,11 +50,21 @@ prepare_tc_csv <- function(d, student_col, question_col, answer_col) {
   tc
 }
 
+tc_add_idf <- function(tc) {
+  dtm = corpustools::get_dtm(tc, feature='feature', weight = 'norm_tfidf', drop_empty_terms = F, context_labels = T, feature_labels=T, ngrams=1)
+  dtm = as(dtm, 'dgTMatrix')
+  dtm = data.table::data.table(doc_id = rownames(dtm)[dtm@i+1], feature=colnames(dtm)[dtm@j+1], tfidf=dtm@x)  
+  tc$tokens = merge(tc$tokens, dtm, by=c('doc_id','feature'))
+  tc
+}
+
 #' @import data.table
-get_question_sim <- function(tc) {
+get_question_sim <- function(tc, measure) {
   if (is.null(tc)) return(NULL)
   
-  g = corpustools::compare_documents(tc, 'feature', meta_cols = 'question', min_similarity = 0.05, measure = 'overlap_pct', return_igraph = F)$d
+  #tc = tc_add_idf(tc)
+  g = corpustools::compare_documents(tc, 'feature', meta_cols = 'question', min_similarity = 0.05, measure = measure, return_igraph = F)$d
+  
   
   from_i = match(g$from, tc$meta$doc_id)
   to_i = match(g$to, tc$meta$doc_id)
@@ -112,7 +122,6 @@ highlight_text <- function(input, output, tc, sim, sa, max_ngrams=5) {
   .question = sa$Question[input$suspicious_answers_rows_selected]
   edges = sim[list(.student, .question),,on=c('from_candidate','question')]
   
-  
   x_docs = unique(edges$from)
   y_docs = unique(edges$to)
 
@@ -123,9 +132,15 @@ highlight_text <- function(input, output, tc, sim, sa, max_ngrams=5) {
   
   x = droplevels(tc$get(doc_id = x_docs))
   x_meta = droplevels(tc$get_meta(doc_id = x_docs))
+  x_meta$Question = .question
+  print(x_meta)
   
   y = droplevels(tc$get(doc_id = y_docs))
   y_meta = droplevels(tc$get_meta(doc_id = y_docs))
+  
+  y_meta = merge(y_meta, 
+                 data.table::data.table(candidate=edges$to_candidate, Similarity=edges$weight), by='candidate')
+  data.table::setorderv(y_meta, 'Similarity', -1)
   
   ## workaround for bug in tokenbrowser (solved in 0.1.3, but not yet on cran)
   y$doc_id = match(y$doc_id, unique(y$doc_id))
@@ -147,8 +162,17 @@ highlight_text <- function(input, output, tc, sim, sa, max_ngrams=5) {
         i_ngram[same_doc]
       })))
     }
-    y$highlight[y_match] = (ng / max_ngrams)^3
+    y$highlight[y_match] = (ng / max_ngrams)
   }
+  y$highlight[!is.na(y$highlight)] = tokenbrowser::rescale_var(y$highlight[!is.na(y$highlight)], new_min = -1, new_max = 1, x_min = 0, x_max = 1)
+  
+  
+  
+  ## alternative, highlight by tfidf (requires tc_add_idf above)
+  #y$highlight = NA
+  #y_match = y$feature %in% unique(x$feature)
+  #y$highlight = ifelse(y_match, y$tfidf, NA)
+  #y$highlight[!is.na(y$highlight)] = tokenbrowser::rescale_var(y$highlight[!is.na(y$highlight)]^2, new_min = -1, new_max = 1)
   
   #browser()
   
@@ -168,10 +192,12 @@ highlight_text <- function(input, output, tc, sim, sa, max_ngrams=5) {
   
   colnames(x_meta)[colnames(x_meta) == 'candidate'] = 'Student'
   colnames(y_meta)[colnames(y_meta) == 'candidate'] = 'Student'
-  #xdoc = tokenbrowser::wrap_documents(x, subset(x_meta, select = c('doc_id','Student')))
-  xdoc = tokenbrowser:::add_tag(tokenbrowser:::wrap_tokens(x), 'answer')
+  #x$doc_id = x_meta$Question
+  #x_meta$doc_id = x_meta$Question
+  xdoc = tokenbrowser::wrap_documents(x, subset(x_meta, select = c('doc_id','Student','Question')))
+  #xdoc = tokenbrowser:::add_tag(tokenbrowser:::wrap_tokens(x), 'answer')
   #xdoc = tokenbrowser:::wrap_tokens(x)
-  ydoc = tokenbrowser::wrap_documents(y, subset(y_meta, select = c('doc_id','Student')))
+  ydoc = tokenbrowser::wrap_documents(y, subset(y_meta, select = c('doc_id','Student','Similarity')))
   if (length(xdoc) > 0) xdoc = gsub('<doc_id>.*</doc_id>', '<doc_id></doc_id>', xdoc)
   if (length(ydoc) > 0) ydoc = gsub('<doc_id>.*</doc_id>', '<doc_id></doc_id>', ydoc)
   
