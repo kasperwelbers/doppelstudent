@@ -5,7 +5,7 @@ app_ui <- function() {
   tagList(
     golem_add_external_resources(),
     
-    dashboardPage(title = 'Persberichten tracker',
+    dashboardPage(title = 'Open-ended exam plagiarism scanner',
                   dashboardHeader(title = 'File upload',
                                   tags$li(class = "dropdown",
                                           tags$li(class = "dropdown", shiny::actionLink('help', 'Help')),
@@ -47,9 +47,9 @@ app_ui <- function() {
                                ), 
                                DT::dataTableOutput('suspicious_answers')
                         ),
-                        column(width=4, 
+                        column(width=4,
                           fixedRow(
-                              div(style = "height:120px", 
+                              div(style = "height:150px", 
                                   h3('Answer'),
                                   shiny::p('Comparison of selected answer with answers from other students, sorted from most to least similar.')
                               ),
@@ -74,10 +74,7 @@ app_ui <- function() {
 }
 
 csv_options = list('TestVision'='testvision',
-                   'CSV: comma-separated' = 'read_csv', 
-                   'CSV: tab-separated' = 'read_tsv',
-                   'CSV: European (; with , decimal point)' = 'read_csv2', 
-                   'CSV: custom' = 'custom')
+                   'CSV' = 'csv')
 
 #' @import shiny
 golem_add_external_resources <- function(){

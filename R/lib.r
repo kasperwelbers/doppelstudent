@@ -18,16 +18,27 @@ create_unique_label <- function(d, new_column, id_col, name_col) {
   d
 }
 
-get_tcorpus <- function(d) {
-  #d = readr::read_csv('~/Downloads/antwoorden open vragen door arjen er uit te halen.csv')
+prepare_tc_testvision <- function(d) {
   d = d[d$QuestionType == 'OpenEnded',]
   
   d = create_unique_label(d, 'candidate', 'CandidateId', 'CandidateDisplayName')
   d = create_unique_label(d, 'question', 'QuestionId', 'QuestionName')
-
+  
   a = d[,c('candidate','question','answer')]
   a$answer = rm_html(a$answer)
-  
+  a$answer = stringi::stri_trim(a$answer)
+  a$answer[is.na(a$answer)] = ''
+  tc = corpustools::create_tcorpus(a, text_col='answer', remember_spaces=T)
+  tc$preprocess('token','feature', lowercase = T, as_ascii = T, remove_punctuation = F, remove_stopwords = F)
+  tc$tokens$feature[tc$tokens$feature %in% c(',','.')] = NA
+  tc
+}
+
+prepare_tc_csv <- function(d, student_col, question_col, answer_col) {
+  #d = readr::read_csv('~/Downloads/antwoorden open vragen door arjen er uit te halen.csv')
+  a = d[,c(student_col, question_col, answer_col)]
+  colnames(a) = c('candidate','question','answer')
+  a$answer = rm_html(a$answer)
   a$answer = stringi::stri_trim(a$answer)
   a$answer[is.na(a$answer)] = ''
   tc = corpustools::create_tcorpus(a, text_col='answer', remember_spaces=T)
@@ -68,11 +79,13 @@ plagiarism_suspects <- function(g) {
   pp
 }
 
-function() {
-  tc = get_tcorpus()
-  sim = get_sim(tc)
-  tc
-  sim
+get_field_suggestion <- function(opts, cn) {
+  for (o in opts) {
+    g = grepl(o, cn, ignore.case = T)
+    if (sum(g) > 0) 
+      return(cn[g][1])
+  }
+  return(NULL)
 }
 
 calc_sim <- function(x, y) {
@@ -81,9 +94,6 @@ calc_sim <- function(x, y) {
   
   candidates = colnames(a)[3:ncol(a)]
   n = length(candidates)
-
-  length(candidates)
-  ncol(a)
   
   maxsim = sapply(1:n, function(i) {
     txt = a[q, 2+i, drop=T]

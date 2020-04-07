@@ -4,7 +4,7 @@
 \alias{run_doppelstudent}
 \title{Run the Shiny Application}
 \usage{
-run_doppelstudent(...)
+run_doppelstudent(port = 6171, ...)
 }
 \description{
 Run the Shiny Application

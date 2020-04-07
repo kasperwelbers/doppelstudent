@@ -12,10 +12,11 @@ app_server <- function(input, output,session) {
       d = readr::read_csv(input$csv_file$datapath)
       output$custom_columns = renderUI(tagList())
     } else {
-      if (input$file_style == 'read_csv') d = readr::read_csv(input$csv_file$datapath)
-      if (input$file_style == 'read_tsv') d = readr::read_tsv(input$csv_file$datapath)
-      if (input$file_style == 'read_csv2') d = readr::read_csv2(input$csv_file$datapath)
-      if (input$file_style == 'custom') d = read.csv(input$csv_file$datapath, sep=input$delimiter, quote = input$quote, dec=input$decimal)
+      if (input$file_style == 'csv') {
+        if (input$delimiter == ';') d = readr::read_csv2(input$csv_file$datapath, quote = input$quote)
+        if (input$delimiter == '\t') d = readr::read_tsv(input$csv_file$datapath, quote=input$quote)
+        if (input$delimiter == ',') d = readr::read_csv(input$csv_file$datapath, quote=input$quote)
+      }
       output$custom_columns = renderUI({
         tagList(
           column(width=1),
@@ -23,53 +24,74 @@ app_server <- function(input, output,session) {
             br(),
             h4('Select column names'),
             selectizeInput('student', 'Student name', choices=c()),
-            selectizeInput('student_id', 'Student ID', choices=c()),
-            selectizeInput('question_id', 'Question ID', choices=c())
+            selectizeInput('question', 'Question (label)', choices=c()),
+            selectizeInput('answer', 'Answer', choices=c())
           )
         )
       })
     }
     output$gogogo = renderUI({
-      br()
-      actionButton('prepare_data', 'Prepare data')
+      tagList(
+        br(),
+        actionButton('prepare_data', 'Load data')
+      )
     })
     d
   })
   
   observeEvent(input$file_style, {
-    if (input$file_style == 'custom') {
+    if (input$file_style == 'csv') {
       output$custom_csv = renderUI({
         fluidRow(
-          radioButtons(inline=T, 'delimiter', 'Delimiter', width='100%', choices = list(','=',',';'=':','tab'='\t')),
-          radioButtons(inline=T, 'quote', 'Quote', choices = c('"'='"',"'"="'")),
-          radioButtons(inline = T, 'decimal', 'Decimal', choices = c('1.0'='.','1,0'=','))
+          column(width=6, selectInput('delimiter', 'Delimiter', width='100%', choices = list(','=',',';'=':','tab'='\t'))),
+          column(width=6, selectInput('quote', 'Quote', choices = c('"'='"',"'"="'"))),
+          #radioButtons(inline = T, 'decimal', 'Decimal', choices = c('1.0'='.','1,0'=','))
         )
       })
+    } else {
+      output$custom_csv = renderUI(NULL)
     }
   })
   
-  output$csv_upload_info = renderText({
+  #output$csv_upload_info = renderText({
+  #  d = csv_file()
+  #  sprintf('Parsed %s columns and %s rows', ncol(d), nrow(d))
+  #})
+  
+  observeEvent(csv_file(), {
     d = csv_file()
-    sprintf('Parsed %s columns and %s rows', ncol(d), nrow(d))
+    output$csv_upload_info = renderText(sprintf('Parsed %s columns and %s rows', ncol(d), nrow(d)))
+    
+    if (input$file_style == 'csv') {
+      print('kankerr')
+      cn = colnames(d)
+      updateSelectizeInput(session, 'student', choices = cn, selected = get_field_suggestion(c('candidatedisplayname','student'), cn))
+      updateSelectizeInput(session, 'question', choices = cn, selected = get_field_suggestion(c('questionname','question'), cn))
+      updateSelectizeInput(session, 'answer', choices = cn, selected = get_field_suggestion(c('^answer$','anser'), cn))
+    }
   })
   
   tc = eventReactive(input$prepare_data, {
-    #if (is.null(input$csv_file)) return(NULL)
-    #mb = input$csv_file$size / 1000000
-    #if (mb > 20)
-    #  shinyalert::shinyalert('Suspiciously large file', 'This file is more than 20Mb, which is rather large, so we assume you uploaded the wrong file (unless this is an open-ended anthology writing exam)', type='error')
-    
-    #d = readr::read_csv(input$csv_file$datapath)
     d = csv_file()
     if (is.null(d)) return(NULL)
-    req_cols = c('CandidateId','CandidateDisplayName','QuestionId','QuestionName')
-    if (!all(req_cols %in% colnames(d))) {
-      shinyalert::shinyalert('Invalid input file', 'Oh no! This file does not have the required columns, or cannot be parsed correctly. Did you provide the file directly given by testvision? (If so, please let us know so we can fix this)', type='error')
-      return(NULL)
+    
+    if (input$file_style == 'testvision') {
+      req_cols = c('CandidateId','CandidateDisplayName','QuestionId','QuestionName')
+      if (!all(req_cols %in% colnames(d))) {
+        shinyalert::shinyalert('Invalid input file', 'Oh no! This file does not have the required columns, or cannot be parsed correctly.', type='error')
+        return(NULL)
+      }
+      tc = prepare_tc_testvision(d)
     } else {
-      shinyjs::toggleClass(selector = "body", class = "sidebar-collapse")    
-      return(get_tcorpus(d))
+      if (is.null(input$student) | is.null(input$question) | is.null(input$answer)) {
+        shinyalert::shinyalert('Invalid column selection', 'Oh no! You have not yet specified which columns to use', type='error')
+        return(NULL)  
+      }
+      tc = prepare_tc_csv(d, input$student, input$question, input$answer)
     }
+  
+    shinyjs::toggleClass(selector = "body", class = "sidebar-collapse")    
+    return(tc)
   })
   
   sim = reactive({get_question_sim(tc())})
@@ -112,7 +134,7 @@ app_server <- function(input, output,session) {
   })
   
   observeEvent(input$help, {
-    shinyalert::shinyalert('How does this work?', "All answers to a question are compared with a text similarity measure that looks at the number of overlapping words. Words are weighted based on how often they are used by all students, so that common words in an answer (e.g., 'the', 'it') are less important, and words that are only used by a few students are given more weight. The similarity score ranges from 0 (no overlap) to 1 (perfect overlap). In addition, to account for the fact that certain types of questions tend to have more similar answers, Z-scores are calculated for how much the similarity of two answers deviates from the average for that question.\n\nWhen you view the answers, verbatim overlap of 2 or more words is highlighted, with darker colours for longer phrases. Note that this is not the method used to calculate the similarity (which uses weighted single words), but only used for easier spotting of overlap")
+    shinyalert::shinyalert('How does this work?', "All answers to a question are compared with a text similarity measure that looks at the number of overlapping words. Words are weighted based on how often they are used by all students, so that common words in an answer (e.g., 'the', 'it') are less important, and words that are only used by a few students are given more weight. The similarity score ranges from 0 (no overlap) to 1 (perfect overlap). In addition, to account for the fact that certain types of questions tend to have more similar answers, Z-scores are calculated for how much the similarity of two answers deviates from the average for that question. (Please do not over-interpret the Z-scores, as similarity is rarely normally distributed. It's just a guideline).\n\nWhen you view the answers, verbatim overlap of 2 or more words is highlighted, with darker colours for longer phrases. Note that this is not the method used to calculate the similarity (which uses weighted single words), but only used for easier spotting of overlap")
   })
   
 }
