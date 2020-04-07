@@ -2,6 +2,20 @@
 app_server <- function(input, output,session) {
   output$suspicious_answers = DT::renderDataTable(data.table(x=4))
   
+  observeEvent(input$file_style, {
+    if (input$file_style == 'csv') {
+      output$custom_csv = renderUI({
+        fluidRow(
+          column(width=6, selectInput('delimiter', 'Delimiter', width='100%', choices = list(','=',',';'=';','tab'='\t'))),
+          column(width=6, selectInput('quote', 'Quote', choices = c('"'='"',"'"="'"))),
+          #radioButtons(inline = T, 'decimal', 'Decimal', choices = c('1.0'='.','1,0'=','))
+        )
+      })
+    } else {
+      output$custom_csv = renderUI(NULL)
+    }
+  })
+  
   csv_file = reactive({
     if (is.null(input$csv_file)) return(NULL)
     mb = input$csv_file$size / 1000000
@@ -13,9 +27,12 @@ app_server <- function(input, output,session) {
       output$custom_columns = renderUI(tagList())
     } else {
       if (input$file_style == 'csv') {
-        if (input$delimiter == ';') d = readr::read_csv2(input$csv_file$datapath, quote = input$quote)
-        if (input$delimiter == '\t') d = readr::read_tsv(input$csv_file$datapath, quote=input$quote)
-        if (input$delimiter == ',') d = readr::read_csv(input$csv_file$datapath, quote=input$quote)
+        delimiter = if(is.null(input$delimiter)) ',' else input$delimiter
+        quote = if(is.null(input$quote)) ',' else input$quote
+        print(delimiter)
+        if (delimiter == ';') d = readr::read_csv2(input$csv_file$datapath, quote = quote)
+        if (delimiter == '\t') d = readr::read_tsv(input$csv_file$datapath, quote=quote)
+        if (delimiter == ',') d = readr::read_csv(input$csv_file$datapath, quote=quote)
       }
       output$custom_columns = renderUI({
         tagList(
@@ -39,19 +56,7 @@ app_server <- function(input, output,session) {
     d
   })
   
-  observeEvent(input$file_style, {
-    if (input$file_style == 'csv') {
-      output$custom_csv = renderUI({
-        fluidRow(
-          column(width=6, selectInput('delimiter', 'Delimiter', width='100%', choices = list(','=',',';'=':','tab'='\t'))),
-          column(width=6, selectInput('quote', 'Quote', choices = c('"'='"',"'"="'"))),
-          #radioButtons(inline = T, 'decimal', 'Decimal', choices = c('1.0'='.','1,0'=','))
-        )
-      })
-    } else {
-      output$custom_csv = renderUI(NULL)
-    }
-  })
+  
   
   #output$csv_upload_info = renderText({
   #  d = csv_file()
@@ -63,7 +68,6 @@ app_server <- function(input, output,session) {
     output$csv_upload_info = renderText(sprintf('Parsed %s columns and %s rows', ncol(d), nrow(d)))
     
     if (input$file_style == 'csv') {
-      print('kankerr')
       cn = colnames(d)
       updateSelectizeInput(session, 'student', choices = cn, selected = get_field_suggestion(c('candidatedisplayname','student'), cn))
       updateSelectizeInput(session, 'question', choices = cn, selected = get_field_suggestion(c('questionname','question'), cn))
