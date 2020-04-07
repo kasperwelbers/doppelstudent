@@ -60,8 +60,14 @@ get_question_sim <- function(tc) {
   g$to_candidate = tc$meta$candidate[to_i]
 
   g = data.table::as.data.table(g)
-  g[, question_mean_weight := mean(weight), by='question']  
-  g[, question_sd_weight := sd(weight), by='question']  
+  data.table::setorderv(g, 'weight', -1)
+  
+  g_agg = unique(g, by=c('from_candidate','question'))
+  g_agg = g_agg[, list(question_mean_weight=mean(weight), question_sd_weight=sd(weight)), by='question']
+  g = merge(g, g_agg, by=c('question'))
+  
+  #g[, question_mean_weight := mean(weight), by='question']  
+  #g[, question_sd_weight := sd(weight), by='question']  
   g$question_z = round((g$weight - g$question_mean_weight) / g$question_sd_weight, 2)
   g[, weight := round(weight, 2)]
   data.table::setorderv(g, cols='question_z', order=-1)
@@ -87,36 +93,6 @@ get_field_suggestion <- function(opts, cn) {
   }
   return(NULL)
 }
-
-calc_sim <- function(x, y) {
-  d = readr::read_csv('~/Downloads/antwoorden open vragen door arjen er uit te halen.csv')
-  a = process_raw_input(d)
-  
-  candidates = colnames(a)[3:ncol(a)]
-  n = length(candidates)
-  
-  maxsim = sapply(1:n, function(i) {
-    txt = a[q, 2+i, drop=T]
-    txt = rm_html(txt)
-    sim = tryCatch(textreuse::align_local(txt,txt)$score, error = function(e) NA)
-  })
-    
-  d = data.frame(i = rep(1:n, each=n),
-                 j = rep(1:n, n))
-  d = d[d$i < d$j,]
-  
-  x = purrr::map2_dfr(d$i, d$j, function(i, j) {
-    text1 = a[q,2+i,drop=T]
-    text2 = a[q,2+j,drop=T]
-    sim = tryCatch(textreuse::align_local(text1,text2), error = function(e) NULL)
-    if (is.null(sim)) return(NULL)
-    drow = tidyr::tibble(i=i, j=j, overlap=sim$score, overlap_i = sim$score / maxsim[i], overlap_j = sim$score / maxsim[j])
-    drow$highest = max(drow$overlap_i, drow$overlap_j)
-    drow
-  })
-  
-}
-
 
 #' @import data.table
 highlight_text <- function(input, output, tc, sim, sa, max_ngrams=5) {
@@ -189,7 +165,8 @@ highlight_text <- function(input, output, tc, sim, sa, max_ngrams=5) {
   
   colnames(x_meta)[colnames(x_meta) == 'candidate'] = 'Student'
   colnames(y_meta)[colnames(y_meta) == 'candidate'] = 'Student'
-  xdoc = tokenbrowser::wrap_documents(x, subset(x_meta, select = c('doc_id','Student')))
+  #xdoc = tokenbrowser::wrap_documents(x, subset(x_meta, select = c('doc_id','Student')))
+  xdoc = tokenbrowser:::add_tag(tokenbrowser:::wrap_tokens(x), 'article')
   ydoc = tokenbrowser::wrap_documents(y, subset(y_meta, select = c('doc_id','Student')))
   if (length(xdoc) > 0) xdoc = gsub('<doc_id>.*</doc_id>', '<doc_id></doc_id>', xdoc)
   if (length(ydoc) > 0) ydoc = gsub('<doc_id>.*</doc_id>', '<doc_id></doc_id>', ydoc)
