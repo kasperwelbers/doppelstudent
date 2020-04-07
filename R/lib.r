@@ -59,11 +59,11 @@ tc_add_idf <- function(tc) {
 }
 
 #' @import data.table
-get_question_sim <- function(tc, measure) {
+get_question_sim <- function(tc, measure, ngrams) {
   if (is.null(tc)) return(NULL)
   
   #tc = tc_add_idf(tc)
-  g = corpustools::compare_documents(tc, 'feature', meta_cols = 'question', min_similarity = 0.05, measure = measure, return_igraph = F)$d
+  g = corpustools::compare_documents(tc, 'feature', meta_cols = 'question', ngrams=as.numeric(ngrams), min_similarity = 0, measure = measure, return_igraph = F)$d
   
   
   from_i = match(g$from, tc$meta$doc_id)
@@ -82,6 +82,7 @@ get_question_sim <- function(tc, measure) {
   #g[, question_mean_weight := mean(weight), by='question']  
   #g[, question_sd_weight := sd(weight), by='question']  
   g$question_z = round((g$weight - g$question_mean_weight) / g$question_sd_weight, 2)
+  g$question_z[g$question_sd_weight == 0] = 0
   g[, weight := round(weight, 2)]
   data.table::setorderv(g, cols='question_z', order=-1)
   #corpustools::browse_texts(tc, doc_ids = c(215,100))
@@ -133,7 +134,6 @@ highlight_text <- function(input, output, tc, sim, sa, max_ngrams=5) {
   x = droplevels(tc$get(doc_id = x_docs))
   x_meta = droplevels(tc$get_meta(doc_id = x_docs))
   x_meta$Question = .question
-  print(x_meta)
   
   y = droplevels(tc$get(doc_id = y_docs))
   y_meta = droplevels(tc$get_meta(doc_id = y_docs))

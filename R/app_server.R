@@ -49,8 +49,9 @@ app_server <- function(input, output,session) {
     }
     output$gogogo = renderUI({
       tagList(
-        h4('Analyze data', align='center'),
-        radioButtons('measure', 'Similarity measure', choices=list('Cosine similarity (symmetic)'='cosine', 'Overlap percentage (assymetric)'='overlap_pct')),
+        h4('Comparison settings', align='center'),
+        radioButtons('measure', 'Similarity measure', choices=list('Cosine similarity (symmetic)'='cosine', 'Overlap percentage (assymetric)'='overlap_pct'), selected = 'overlap_pct'),
+        radioButtons('ngrams', 'Compare what', inline=F, choices = list('Single words'= 1, 'Three word phrases'=3), selected = 1),
         div(align='center', actionButton('prepare_data', 'Run', width = '50%'))
       )
     })
@@ -99,7 +100,7 @@ app_server <- function(input, output,session) {
     return(tc)
   })
   
-  sim = reactive({get_question_sim(tc(), input$measure)})
+  sim = eventReactive(tc(), {get_question_sim(tc(), input$measure, input$ngrams)})
   
   suspicious_students = reactive({
     if (is.null(sim())) 
@@ -170,7 +171,7 @@ app_server <- function(input, output,session) {
   })
   
   observeEvent(input$help, {
-    shinyalert::shinyalert('How does this work?', "All answers to a question are compared with a text similarity measure that looks at the number of overlapping words. Words are weighted based on how often they are used by all students, so that common words in an answer (e.g., 'the', 'it') are less important, and words that are only used by a few students are given more weight. The similarity score ranges from 0 (no overlap) to 1 (perfect overlap).\n\nThe second table shows the highest similarity score that a student reached for each question. In addition, to account for the fact that certain types of questions tend to have more similar answers, Z-scores are calculated for how much this score deviates from the average of all students for that question. In the first table, that can be used to filter on specific students, the average Z-scores show which students are overall more likely to give similar answers to others.\n\nWhen you view the answers, verbatim overlap of 2 or more words is highlighted, with darker colours for longer phrases. Note that this is not the method used to calculate the similarity (which uses weighted single words). It's just to make it easier to spot verbatim copy")
+    shinyalert::shinyalert('How does this work?', "All answers to a question are compared with a text similarity measure that looks at the number of overlapping words (or tri-grams: phrases of three words). Words are weighted based on how often they are used by all students, so that common words in an answer (e.g., 'the', 'it') are less important, and words that are only used by a few students are given more weight. The similarity score ranges from 0 (no overlap) to 1 (perfect overlap).\n\nThe second table shows the highest similarity score that a student reached for each question. In addition, to account for the fact that certain types of questions tend to have more similar answers, Z-scores are calculated for how much this score deviates from the average of all students for that question. In the first table, that can be used to filter on specific students, the average Z-scores show which students are overall more likely to give similar answers to others.\n\nWhen you view the answers, verbatim overlap of 2 or more words is highlighted, with darker colours for longer phrases. Note that this is not the method used to calculate the similarity. It's just to make it easier to spot verbatim copy")
   })
   
 }

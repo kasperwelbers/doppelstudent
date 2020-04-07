@@ -67,7 +67,7 @@ app_ui <- function() {
                             div(class='textbox', 
                                 wellPanel(
                                 htmlOutput('txt_y'), 
-                                style = "overflow-y: scroll; height: 450px")), 
+                                style = "overflow-y: scroll; height: 355px")), 
                           )
                         
                         )
