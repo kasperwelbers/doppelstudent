@@ -6,8 +6,8 @@ app_server <- function(input, output,session) {
     if (input$file_style == 'csv') {
       output$custom_csv = renderUI({
         fluidRow(
-          column(width=6, selectInput('delimiter', 'Delimiter', width='100%', choices = list(','=',',';'=';','tab'='\t'))),
-          column(width=6, selectInput('quote', 'Quote', choices = c('"'='"',"'"="'"))),
+          column(width=7, radioButtons('delimiter', 'Delimiter', inline=T, width='100%', choices = list(','=',',';'=';','tab'='\t'))),
+          column(width=5, radioButtons('quote', 'Quote', inline=T, choices = c('"'='"',"'"="'"))),
           #radioButtons(inline = T, 'decimal', 'Decimal', choices = c('1.0'='.','1,0'=','))
         )
       })
@@ -49,9 +49,9 @@ app_server <- function(input, output,session) {
     }
     output$gogogo = renderUI({
       tagList(
-        br(),
-        actionButton('prepare_data', 'Load data'),
-        radioButtons('measure', 'Similarity measure', choices=list('Cosine similarity (symmetic)'='cosine', 'Overlap percentage (assymetric)'='overlap_pct'))
+        h4('Analyze data', align='center'),
+        radioButtons('measure', 'Similarity measure', choices=list('Cosine similarity (symmetic)'='cosine', 'Overlap percentage (assymetric)'='overlap_pct')),
+        div(align='center', actionButton('prepare_data', 'Run', width = '50%'))
       )
     })
     d

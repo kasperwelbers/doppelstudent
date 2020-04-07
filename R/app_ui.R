@@ -15,19 +15,21 @@ app_ui <- function() {
                                    shinyalert::useShinyalert(),  # Set up shinyalert
                                    shinyjs::useShinyjs(),
                                    sidebarMenu(
-                                     div(align='center',
-                                     column(width=12,
-                                       div(
-                                         selectInput('file_style', 'Choose input format', choice=csv_options),
-                                         uiOutput('custom_csv')
+                                      div(align='center',
+                                       column(width=12,
+                                         div(
+                                           selectInput('file_style', 'Choose input format', choice=csv_options),
+                                           uiOutput('custom_csv')
+                                         ),
+                                         fileInput('csv_file', label = 'Upload file', accept = c("text/csv", "text/comma-separated-values,text/plain",".csv")),
+                                         textOutput('csv_upload_info')
                                        ),
-                                       fileInput('csv_file', label = 'Upload testvision file', accept = c("text/csv", "text/comma-separated-values,text/plain",".csv")),
-                                       textOutput('csv_upload_info')
+                                       uiOutput('custom_columns'),
+                                       br(), br(),
                                      ),
-                                     uiOutput('custom_columns'),
-                                     uiOutput('gogogo')
-                                     
-                                     
+                                     column(width=12, 
+                                       br(), br(),
+                                       uiOutput('gogogo')
                                      )
                                    )),
                   dashboardBody(
