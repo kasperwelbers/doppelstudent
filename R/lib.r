@@ -1,4 +1,5 @@
 rm_html <- function(x) {
+  x = iconv(x, "UTF-8", "UTF-8", sub='')
   #gsub('<.*?>','',x)
   textclean::replace_html(x)
 }
@@ -25,6 +26,8 @@ prepare_tc_testvision <- function(d) {
   d = create_unique_label(d, 'question', 'QuestionId', 'QuestionName')
   
   a = d[,c('candidate','question','answer')]
+  a$candidate = rm_html(a$candidate)
+  a$question = rm_html(a$question)
   a$answer = rm_html(a$answer)
   a$answer = stringi::stri_trim(a$answer)
   a$answer[is.na(a$answer)] = ''
@@ -166,7 +169,8 @@ highlight_text <- function(input, output, tc, sim, sa, max_ngrams=5) {
   colnames(x_meta)[colnames(x_meta) == 'candidate'] = 'Student'
   colnames(y_meta)[colnames(y_meta) == 'candidate'] = 'Student'
   #xdoc = tokenbrowser::wrap_documents(x, subset(x_meta, select = c('doc_id','Student')))
-  xdoc = tokenbrowser:::add_tag(tokenbrowser:::wrap_tokens(x), 'article')
+  xdoc = tokenbrowser:::add_tag(tokenbrowser:::wrap_tokens(x), 'answer')
+  #xdoc = tokenbrowser:::wrap_tokens(x)
   ydoc = tokenbrowser::wrap_documents(y, subset(y_meta, select = c('doc_id','Student')))
   if (length(xdoc) > 0) xdoc = gsub('<doc_id>.*</doc_id>', '<doc_id></doc_id>', xdoc)
   if (length(ydoc) > 0) ydoc = gsub('<doc_id>.*</doc_id>', '<doc_id></doc_id>', ydoc)

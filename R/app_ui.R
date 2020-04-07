@@ -49,7 +49,7 @@ app_ui <- function() {
                         ),
                         column(width=4,
                           fixedRow(
-                              div(style = "height:120px", 
+                              div(style = "height:150px", 
                                   h3('Compare answers', align='center'),
                                   shiny::p('Comparison of selected answer with answers from other students, sorted from most to least similar.')
                               ),
@@ -58,14 +58,14 @@ app_ui <- function() {
                                   wellPanel(
                                   htmlOutput('txt_x'),
                                   br(),
-                                  style = "overflow-y: scroll; height: 200px"))),
+                                  style = "overflow-y: scroll; height: 350px"))),
                           fixedRow(
                             h4('Other answers', align='center'),
                             br(),
                             div(class='textbox', 
                                 wellPanel(
                                 htmlOutput('txt_y'), 
-                                style = "overflow-y: scroll; height: 550px")), 
+                                style = "overflow-y: scroll; height: 450px")), 
                           )
                         
                         )

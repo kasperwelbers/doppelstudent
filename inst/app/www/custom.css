@@ -21,6 +21,14 @@ doc_id {
   font-weight:bold;
 }
 
+answer {
+  padding: 0.2em;
+  line-height: 1.2;
+  font-size: 12px;
+  display: block;
+  overflow: hidden;
+}
+
 article {
   padding: 1em;
   line-height: 1.2;
