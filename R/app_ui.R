@@ -3,6 +3,7 @@
 #' @import shinydashboard
 app_ui <- function() {
   tagList(
+    shinyjs::useShinyjs(),
     golem_add_external_resources(),
     
     dashboardPage(title = 'Open-ended exam plagiarism scanner',
@@ -21,7 +22,7 @@ app_ui <- function() {
                                            selectInput('file_style', 'Choose input format', choice=csv_options),
                                            uiOutput('custom_csv')
                                          ),
-                                         fileInput('csv_file', label = 'Upload file', accept = c("text/csv", "text/comma-separated-values,text/plain",".csv")),
+                                         fileInput('csv_file', label = 'Upload file', accept = c("text/csv", "text/comma-separated-values,text/plain",".csv",".xlsx")),
                                          textOutput('csv_upload_info')
                                        ),
                                        uiOutput('custom_columns'),
@@ -80,7 +81,8 @@ app_ui <- function() {
 }
 
 csv_options = list('TestVision'='testvision',
-                   'CSV' = 'csv')
+                   'csv' = 'csv',
+                   'xlsx' = 'xlsx')
 
 #' @import shiny
 golem_add_external_resources <- function(){

@@ -1,7 +1,9 @@
 rm_html <- function(x) {
   x = iconv(x, "UTF-8", "UTF-8", sub='')
   #gsub('<.*?>','',x)
-  textclean::replace_html(x)
+  x = textclean::replace_html(x)
+  x = stringi::stri_trim(x)
+  x
 }
 
 create_unique_label <- function(d, new_column, id_col, name_col) {
@@ -19,18 +21,29 @@ create_unique_label <- function(d, new_column, id_col, name_col) {
   d
 }
 
-prepare_tc_testvision <- function(d) {
-  d = d[d$QuestionType == 'OpenEnded',]
-  
-  d = create_unique_label(d, 'candidate', 'CandidateId', 'CandidateDisplayName')
-  d = create_unique_label(d, 'question', 'QuestionId', 'QuestionName')
+prepare_tc_testvision <- function(input, d, testvision_type) {
+  if (testvision_type == 'csv') {
+    d = create_unique_label(d, 'candidate', 'CandidateId', 'CandidateDisplayName')
+    d = create_unique_label(d, 'question', 'QuestionId', 'QuestionName')
+  } else {
+    ci = openxlsx::read.xlsx(input$csv_file$datapath, sheet=3)
+    d = merge(d, ci, by='resultid')
+    d = create_unique_label(d, 'candidate', 'candidateid', 'displayname')
+    d = create_unique_label(d, 'question', 'questionid', 'Question.name')
+  }
   
   a = d[,c('candidate','question','answer')]
   a$candidate = rm_html(a$candidate)
   a$question = rm_html(a$question)
   a$answer = rm_html(a$answer)
-  a$answer = stringi::stri_trim(a$answer)
   a$answer[is.na(a$answer)] = ''
+  
+  if (any(duplicated(a[,c('question','candidate')]))) {
+    shinyalert::shinyalert('Duplicate student-question pairs', 'The data contains duplicate student-question pairs. This should not be possible with Testvision data (but at the moment we have not yet given an id for testvision xls input)', type='error')
+    return(NULL)
+    #a = make_unique_pairs(a)
+  }
+  
   tc = corpustools::create_tcorpus(a, text_col='answer', remember_spaces=T)
   tc$preprocess('token','feature', lowercase = T, as_ascii = T, remove_punctuation = F, remove_stopwords = F)
   tc$tokens$feature[tc$tokens$feature %in% c(',','.')] = NA
@@ -39,15 +52,41 @@ prepare_tc_testvision <- function(d) {
 
 prepare_tc_csv <- function(d, student_col, question_col, answer_col) {
   #d = readr::read_csv('~/Downloads/antwoorden open vragen door arjen er uit te halen.csv')
+  
+  for (col in unique(c(student_col, question_col, answer_col)))
+    d[[col]] = rm_html(d[[col]])
+
+  if (length(student_col) > 1) {
+    d$student = apply(d[,student_col], 1, paste, collapse='; ')
+    student_col = 'student'
+  }
+  if (length(question_col) > 1) {
+    d$question = apply(d[,question_col], 1, paste, collapse='; ')
+    question_col = 'question'
+  }
+  
   a = d[,c(student_col, question_col, answer_col)]
   colnames(a) = c('candidate','question','answer')
-  a$answer = rm_html(a$answer)
-  a$answer = stringi::stri_trim(a$answer)
   a$answer[is.na(a$answer)] = ''
+  
+  if (any(duplicated(a[,c('question','candidate')]))) {
+    shinyalert::shinyalert('Duplicate student-question pairs', 'The data contains duplicate student-question pairs, which should not be possible (also see "help" under select column)', type='error')
+    #a = make_unique_pairs(a)
+    return(NULL)
+  }
+
   tc = corpustools::create_tcorpus(a, text_col='answer', remember_spaces=T)
   tc$preprocess('token','feature', lowercase = T, as_ascii = T, remove_punctuation = F, remove_stopwords = F)
   tc$tokens$feature[tc$tokens$feature %in% c(',','.')] = NA
   tc
+}
+
+make_unique_pairs <- function(a) {
+  a = data.table::as.data.table(a)
+  a[, id := 1:length(answer), by=c('candidate','question')]
+  a$candidate = sprintf('%s #%s', a$candidate, a$id)
+  a$id = NULL
+  as.data.frame(a)
 }
 
 tc_add_idf <- function(tc) {
@@ -118,7 +157,6 @@ highlight_text <- function(input, output, tc, sim, sa, max_ngrams=5) {
     return(NULL)
   } 
   
-  
   .student = sa$Student[input$suspicious_answers_rows_selected]
   .question = sa$Question[input$suspicious_answers_rows_selected]
   edges = sim[list(.student, .question),,on=c('from_candidate','question')]
@@ -139,7 +177,7 @@ highlight_text <- function(input, output, tc, sim, sa, max_ngrams=5) {
   y_meta = droplevels(tc$get_meta(doc_id = y_docs))
   
   y_meta = merge(y_meta, 
-                 data.table::data.table(candidate=edges$to_candidate, Similarity=edges$weight), by='candidate')
+                 data.table::data.table(candidate=edges$to_candidate, Similarity=edges$weight), by='candidate', allow.cartesian=T)
   data.table::setorderv(y_meta, 'Similarity', -1)
   
   ## workaround for bug in tokenbrowser (solved in 0.1.3, but not yet on cran)

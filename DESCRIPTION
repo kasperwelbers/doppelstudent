@@ -17,5 +17,6 @@ Imports:
     shinyalert,
     shinyjs,
     DT,
-    textclean
+    textclean,
+    openxlsx
 RoxygenNote: 7.0.2

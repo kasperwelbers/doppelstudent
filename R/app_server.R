@@ -18,15 +18,22 @@ app_server <- function(input, output,session) {
   
   csv_file = reactive({
     if (is.null(input$csv_file)) return(NULL)
+    
+    ## this is redundant, since shiny already imposes a limit on 5MB, but I keep it here in case we want to add a message
     mb = input$csv_file$size / 1000000
-    if (mb > 20)
+    if (mb > 5)
       shinyalert::shinyalert('Suspiciously large file', 'This file is more than 20Mb, which is rather large, so we assume you uploaded the wrong file (unless this is an open-ended anthology writing exam)', type='error')
     
     if (input$file_style == 'testvision') {
-      d = readr::read_csv(input$csv_file$datapath)
+      
+      if (grepl('\\.csv$', input$csv_file$datapath)) 
+        d = readr::read_csv(input$csv_file$datapath)
+      else
+        d = openxlsx::read.xlsx(input$csv_file$datapath)
       output$custom_columns = renderUI(tagList())
     } else {
-      if (input$file_style == 'csv') {
+      if (grepl('\\.csv$', input$csv_file$datapath)) {
+        updateSelectInput(session, 'file_style', selected='csv')
         delimiter = if(is.null(input$delimiter)) ',' else input$delimiter
         quote = if(is.null(input$quote)) ',' else input$quote
         print(delimiter)
@@ -34,15 +41,20 @@ app_server <- function(input, output,session) {
         if (delimiter == '\t') d = readr::read_tsv(input$csv_file$datapath, quote=quote)
         if (delimiter == ',') d = readr::read_csv(input$csv_file$datapath, quote=quote)
       }
+      if (grepl('\\.xlsx?$', input$csv_file$datapath)) { 
+        updateSelectInput(session, 'file_style', selected='xlsx')
+        d = openxlsx::read.xlsx(input$csv_file$datapath)
+      }
       output$custom_columns = renderUI({
         tagList(
           column(width=1),
           column(width=10, align='center',
             br(),
-            h4('Select column names'),
-            selectizeInput('student', 'Student name', choices=c()),
-            selectizeInput('question', 'Question (label)', choices=c()),
-            selectizeInput('answer', 'Answer', choices=c())
+            h4('Select column names', shiny::actionLink('help_column_select','help')),
+          
+            selectizeInput('student', 'Student name', choices=c(), multiple=T),
+            selectizeInput('question', 'Question (label)', choices=c(), multiple=T),
+            selectizeInput('answer', 'Answer', choices=c(), multiple=F)
           )
         )
       })
@@ -50,14 +62,17 @@ app_server <- function(input, output,session) {
     output$gogogo = renderUI({
       tagList(
         h4('Comparison settings', align='center'),
-        radioButtons('measure', 'Similarity measure', choices=list('Cosine similarity (symmetic)'='cosine', 'Overlap percentage (assymetric)'='overlap_pct'), selected = 'overlap_pct'),
-        radioButtons('ngrams', 'Compare what', inline=F, choices = list('Single words'= 1, 'Three word phrases'=3), selected = 1),
+        radioButtons('measure', 'Similarity measure', choices=list('Cosine similarity (symmetic)'='cosine', 'Percentage copied (asymmetric)'='overlap_pct'), selected = 'overlap_pct'),
+        radioButtons('ngrams', 'Compare what', inline=F, choices = list('Single words'= 1, 'Three word sequences'=3), selected = 1),
         div(align='center', actionButton('prepare_data', 'Run', width = '50%'))
       )
     })
     d
   })
   
+  observeEvent(input$help_column_select, {
+    shinyalert::shinyalert('How to select columns', 'Selecting columns is pretty straightforward stuff, but here you can select multiple columns, and you might be wondering why.\n\nTo compare the answers of different students to the same question, the student-question pairs need to be unique. Sometimes this requires using multiple columns (e.g., student name & student ID, first and last name). The values in these columns will then be concatenated')
+  })
   
   
   #output$csv_upload_info = renderText({
@@ -69,11 +84,17 @@ app_server <- function(input, output,session) {
     d = csv_file()
     output$csv_upload_info = renderText(sprintf('Parsed %s columns and %s rows', ncol(d), nrow(d)))
     
-    if (input$file_style == 'csv') {
+    if (input$file_style %in% c('csv','xlsx')) {
       cn = colnames(d)
-      updateSelectizeInput(session, 'student', choices = cn, selected = get_field_suggestion(c('candidatedisplayname','student'), cn))
-      updateSelectizeInput(session, 'question', choices = cn, selected = get_field_suggestion(c('questionname','question'), cn))
-      updateSelectizeInput(session, 'answer', choices = cn, selected = get_field_suggestion(c('^answer$','anser'), cn))
+      student_suggestion = union(get_field_suggestion(c('candidatedisplayname','candidatename','student'), cn), 
+                                 get_field_suggestion(c('candidateid', 'resultid'), cn))
+      question_suggestion = union(get_field_suggestion(c('questionname','question.name','question'), cn),
+                                  get_field_suggestion(c('questionid'), cn))
+      answer_suggestion = get_field_suggestion(c('^answer$','anser'), cn)
+      
+      updateSelectizeInput(session, 'student', choices = cn, selected = student_suggestion)
+      updateSelectizeInput(session, 'question', choices = cn, selected = question_suggestion)
+      updateSelectizeInput(session, 'answer', choices = cn, selected = answer_suggestion)
     }
   })
   
@@ -82,20 +103,33 @@ app_server <- function(input, output,session) {
     if (is.null(d)) return(NULL)
     
     if (input$file_style == 'testvision') {
-      req_cols = c('CandidateId','CandidateDisplayName','QuestionId','QuestionName')
+      testvision_type = if (grepl('\\.csv$', input$csv_file$datapath)) 'csv' else 'xlsx'
+      if (testvision_type == 'csv') 
+        req_cols = c('CandidateId','CandidateDisplayName','QuestionId','QuestionName','answer')
+      else
+        req_cols = c('candidatename','Question.name','questionid','answer')
+      
       if (!all(req_cols %in% colnames(d))) {
         shinyalert::shinyalert('Invalid input file', 'Oh no! This file does not have the required columns, or cannot be parsed correctly.', type='error')
         return(NULL)
       }
-      tc = prepare_tc_testvision(d)
+      
+      tc = prepare_tc_testvision(input, d, testvision_type)
+      
     } else {
       if (is.null(input$student) | is.null(input$question) | is.null(input$answer)) {
         shinyalert::shinyalert('Invalid column selection', 'Oh no! You have not yet specified which columns to use', type='error')
         return(NULL)  
       }
+      req_cols = unique(c(input$student,input$question,input$answer))
+      if (!all(req_cols %in% colnames(d))) {
+        shinyalert::shinyalert('Invalid input file', 'Oh no! This file does not have the required columns, or cannot be parsed correctly.', type='error')
+        return(NULL)
+      }
       tc = prepare_tc_csv(d, input$student, input$question, input$answer)
     }
-  
+    
+    if (is.null(tc)) return(NULL)
     shinyjs::toggleClass(selector = "body", class = "sidebar-collapse")    
     return(tc)
   })
