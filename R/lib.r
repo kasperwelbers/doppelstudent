@@ -21,16 +21,13 @@ create_unique_label <- function(d, new_column, id_col, name_col) {
   d
 }
 
+
 prepare_tc_testvision <- function(input, d, testvision_type) {
-  if (testvision_type == 'csv') {
-    d = create_unique_label(d, 'candidate', 'CandidateId', 'CandidateDisplayName')
-    d = create_unique_label(d, 'question', 'QuestionId', 'QuestionName')
-  } else {
-    ci = openxlsx::read.xlsx(input$csv_file$datapath, sheet=3)
-    d = merge(d, ci, by='resultid')
-    d = create_unique_label(d, 'candidate', 'candidateid', 'displayname')
-    d = create_unique_label(d, 'question', 'questionid', 'Question.name')
-  }
+  
+  if ('kandidaatnaam' %in% colnames(d))
+    d = prepare_testvision_dutch(input, d, testvision_type)
+  else 
+    d = prepare_testvision_english(input, d, testvision_type)
   
   a = d[,c('candidate','question','answer')]
   a$candidate = rm_html(a$candidate)
@@ -48,6 +45,42 @@ prepare_tc_testvision <- function(input, d, testvision_type) {
   tc$preprocess('token','feature', lowercase = T, as_ascii = T, remove_punctuation = F, remove_stopwords = F)
   tc$tokens$feature[tc$tokens$feature %in% c(',','.')] = NA
   tc
+}
+
+prepare_testvision_english <- function(input, d, testvision_type) {
+  colnames(d) = tolower(colnames(d))
+  
+  if (testvision_type == 'csv') {
+    d = create_unique_label(d, 'candidate', 'candidateid', 'candidatedisplayname')
+    d = create_unique_label(d, 'question', 'questionid', 'questionname')
+  } else {
+    sn = openxlsx::getSheetNames(input$csv_file$datapath)
+    sheet_i = which(sn == 'candidatesheet')
+    ci = openxlsx::read.xlsx(input$csv_file$datapath, sheet=sheet_i)
+    d = merge(d, ci, by='resultid')
+    d = create_unique_label(d, 'candidate', 'candidateid', 'displayname')
+    d = create_unique_label(d, 'question', 'questionid', 'question.name')
+  }
+  d
+}
+
+prepare_testvision_dutch <- function(input, d, testvision_type) {
+  colnames(d) = tolower(colnames(d))
+  d$answer = d$antwoord
+  
+  if (testvision_type == 'csv') {
+    d = create_unique_label(d, 'candidate', 'kandidaatid', 'kandidaatweergavenaam')
+    d = create_unique_label(d, 'question', 'vraagid', 'vraagnaam')
+  } else {
+    sn = openxlsx::getSheetNames(input$csv_file$datapath)
+    sheet_i = which(sn == 'kandidaatblad')
+    ci = openxlsx::read.xlsx(input$csv_file$datapath, sheet=sheet_i)
+    colnames(ci) = tolower(colnames(ci))
+    d = merge(d, ci, by='resultaatid')
+    d = create_unique_label(d, 'candidate', 'kandidaatid', 'weergavenaam')
+    d = create_unique_label(d, 'question', 'vraagid', 'vraagnaam')
+  }
+  d
 }
 
 prepare_tc_csv <- function(d, student_col, question_col, answer_col) {
@@ -103,7 +136,6 @@ get_question_sim <- function(tc, measure, ngrams) {
   
   #tc = tc_add_idf(tc)
   g = corpustools::compare_documents(tc, 'feature', meta_cols = 'question', ngrams=as.numeric(ngrams), min_similarity = 0, measure = measure, return_igraph = F)$d
-  
   
   from_i = match(g$from, tc$meta$doc_id)
   to_i = match(g$to, tc$meta$doc_id)
@@ -162,7 +194,8 @@ highlight_text <- function(input, output, tc, sim, sa, max_ngrams=5) {
   edges = sim[list(.student, .question),,on=c('from_candidate','question')]
   
   x_docs = unique(edges$from)
-  y_docs = unique(edges$to)
+  top_10 = length(edges$to) > 10
+  y_docs = head(unique(edges$to), 10)
 
   tc = subset(tc, subset_meta = doc_id %in% union(x_docs, y_docs))
   for (i in 2:max_ngrams)

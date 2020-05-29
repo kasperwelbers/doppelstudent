@@ -38,15 +38,15 @@ app_ui <- function() {
                       fluidRow(
                         column(width = 3,  
                                div(style = "height:120px", 
-                                h3('Suspicious students'),
-                                shiny::p('Students sorted by probability of plagiarism. Select one or multiple rows to filter next table')
+                                h3('Similar students'),
+                                shiny::p('Students sorted by most to least similar. Select one or multiple rows to filter next table')
                                ),
                                DT::dataTableOutput('suspicious_students')
                         ),
                         column(width = 5, 
                                div(style = "height:120px", 
-                                h3('Suspicious answers'),
-                                shiny::p('Answers sorted by probability of plagiarism. Select one to view answer with similar answers')
+                                h3('Similar answers'),
+                                shiny::p('Answers sorted by most to least similar. Select one to view answer with similar answers')
                                ), 
                                DT::dataTableOutput('suspicious_answers')
                         ),
@@ -63,7 +63,7 @@ app_ui <- function() {
                                   br(),
                                   style = "overflow-y: scroll; height: 350px"))),
                           fixedRow(
-                            h4('Other answers', align='center'),
+                            h4('Top similar answers', align='center'),
                             br(),
                             div(class='textbox', 
                                 wellPanel(

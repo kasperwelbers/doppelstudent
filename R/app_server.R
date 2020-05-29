@@ -61,9 +61,11 @@ app_server <- function(input, output,session) {
     }
     output$gogogo = renderUI({
       tagList(
-        h4('Comparison settings', align='center'),
-        radioButtons('measure', 'Similarity measure', choices=list('Cosine similarity (symmetic)'='cosine', 'Percentage copied (asymmetric)'='overlap_pct'), selected = 'overlap_pct'),
-        radioButtons('ngrams', 'Compare what', inline=F, choices = list('Single words'= 1, 'Three word sequences'=3), selected = 1),
+        box(collapsible = T, collapsed = T, title = 'Change settings', width = 12, background = 'black',  
+          radioButtons('measure', 'Similarity measure', choices=list('symmetric (cosine similarity)'='cosine', 'asymmetric (% overlap)'='overlap_pct'), selected = 'overlap_pct'),
+          radioButtons('ngrams', 'Compare what', inline=F, choices = list('Single words'= 1, 'Three word sequences'=3), selected = 1)
+        ),
+        br(),
         div(align='center', actionButton('prepare_data', 'Run', width = '50%'))
       )
     })
@@ -99,17 +101,28 @@ app_server <- function(input, output,session) {
   })
   
   tc = eventReactive(input$prepare_data, {
+    
     d = csv_file()
     if (is.null(d)) return(NULL)
     
     if (input$file_style == 'testvision') {
       testvision_type = if (grepl('\\.csv$', input$csv_file$datapath)) 'csv' else 'xlsx'
-      if (testvision_type == 'csv') 
-        req_cols = c('CandidateId','CandidateDisplayName','QuestionId','QuestionName','answer')
-      else
-        req_cols = c('candidatename','Question.name','questionid','answer')
       
-      if (!all(req_cols %in% colnames(d))) {
+      if ('kandidaatnaam' %in% colnames(d)) {
+        if (testvision_type == 'csv') 
+          req_cols = c('kandidaatid','kandidaatweergavenaam','vraagid','vraagnaam','antwoord')
+        else
+          req_cols = c('kandidaatnaam','vraagnaam','vraagid','antwoord')
+      } else {
+        if (testvision_type == 'csv') 
+          req_cols = c('candidateid','candidatedisplayname','questionid','questionname','answer')
+        else
+          req_cols = c('candidatename','question.name','questionid','answer')
+      }
+        
+      if (!all(req_cols %in% tolower(colnames(d)))) {
+        print(req_cols)
+        print(tolower(colnames(d)))
         shinyalert::shinyalert('Invalid input file', 'Oh no! This file does not have the required columns, or cannot be parsed correctly.', type='error')
         return(NULL)
       }
