@@ -1,5 +1,7 @@
 #' @import shiny
 app_server <- function(input, output,session) {
+  options(shiny.maxRequestSize=50*1024^2)
+  
   output$suspicious_answers = DT::renderDataTable(data.table(x=4))
   
   observeEvent(input$file_style, {
@@ -21,8 +23,8 @@ app_server <- function(input, output,session) {
     
     ## this is redundant, since shiny already imposes a limit on 5MB, but I keep it here in case we want to add a message
     mb = input$csv_file$size / 1000000
-    if (mb > 5)
-      shinyalert::shinyalert('Suspiciously large file', 'This file is more than 20Mb, which is rather large, so we assume you uploaded the wrong file (unless this is an open-ended anthology writing exam)', type='error')
+    if (mb > 50)
+      shinyalert::shinyalert('Suspiciously large file', 'This file is more than 50Mb, which is rather large, so we assume you uploaded the wrong file (unless this is an open-ended anthology writing exam)', type='error')
     
     if (input$file_style == 'testvision') {
       
@@ -63,6 +65,7 @@ app_server <- function(input, output,session) {
       tagList(
         box(collapsible = T, collapsed = T, title = 'Change settings', width = 12, background = 'black',  
           radioButtons('measure', 'Similarity measure', choices=list('symmetric (cosine similarity)'='cosine', 'asymmetric (% overlap)'='overlap_pct'), selected = 'overlap_pct'),
+          sliderInput('min_similarity', 'Minimum similarity', min = 0, max=1, value = 0.1),
           radioButtons('ngrams', 'Compare what', inline=F, choices = list('Single words'= 1, 'Three word sequences'=3), selected = 1)
         ),
         br(),
@@ -147,7 +150,7 @@ app_server <- function(input, output,session) {
     return(tc)
   })
   
-  sim = eventReactive(tc(), {get_question_sim(tc(), input$measure, input$ngrams)})
+  sim = eventReactive(tc(), {get_question_sim(tc(), input$measure, input$min_similarity, input$ngrams)})
   
   suspicious_students = reactive({
     if (is.null(sim())) 

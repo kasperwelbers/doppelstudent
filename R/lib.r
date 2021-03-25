@@ -131,12 +131,12 @@ tc_add_idf <- function(tc) {
 }
 
 #' @import data.table
-get_question_sim <- function(tc, measure, ngrams) {
+get_question_sim <- function(tc, measure, min_similarity, ngrams) {
   if (is.null(tc)) return(NULL)
   
   #tc = tc_add_idf(tc)
-  g = corpustools::compare_documents(tc, 'feature', meta_cols = 'question', ngrams=as.numeric(ngrams), min_similarity = 0, measure = measure, return_igraph = F)$d
-  
+  g = corpustools::compare_documents(tc, 'feature', meta_cols = 'question', ngrams=as.numeric(ngrams), min_similarity = min_similarity, measure = measure, return_igraph = F)$d
+
   from_i = match(g$from, tc$meta$doc_id)
   to_i = match(g$to, tc$meta$doc_id)
   g$question = tc$meta$question[from_i]

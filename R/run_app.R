@@ -12,7 +12,7 @@ run_doppelstudent <- function(port=6171, ...) {
 
 
 function(){
-  devtools::install_github('kasperwelbers/tokenbrowser')
+  #devtools::install_github('kasperwelbers/tokenbrowser')
   devtools::install_github('kasperwelbers/doppelstudent')
   run_doppelstudent()
 }
