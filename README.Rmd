@@ -28,5 +28,5 @@ devtools::install_github('kasperwelbers/tokenbrowser')
 devtools::install_github('kasperwelbers/doppelstudent')
 
 library(doppelstudent)
-run_doppelstudent()
+run_app()
 ```

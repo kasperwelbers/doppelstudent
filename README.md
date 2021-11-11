@@ -3,7 +3,7 @@
 
 # doppelstudent
 
-This is a (quick and dirty) tool for exploring plagiarism in open-ended
+This is a tool for exploring plagiarism in open-ended
 exam questions. It is designed for use with testvision csv output, but
 could pretty easily be adapted for any open-ended exam data.
 
@@ -19,9 +19,8 @@ package. For the current version, the development version of
 tokenbrowser also needs to be installed.
 
 ``` r
-devtools::install_github('kasperwelbers/tokenbrowser')
 devtools::install_github('kasperwelbers/doppelstudent')
 
 library(doppelstudent)
-run_doppelstudent()
+run_app()
 ```

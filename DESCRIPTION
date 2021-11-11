@@ -19,5 +19,6 @@ Imports:
     DT,
     textclean,
     tokenbrowser,
-    openxlsx
-RoxygenNote: 7.1.0
+    openxlsx,
+    pkgload
+RoxygenNote: 7.1.2
